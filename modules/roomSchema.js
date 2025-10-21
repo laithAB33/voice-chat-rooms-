@@ -1,4 +1,5 @@
 import mongoose,{ Schema } from "mongoose";
+import { AppError } from "../utils/appError.js";
 
 const roomSchema = new Schema({
     name: {
@@ -53,8 +54,11 @@ roomSchema.methods.isFull = function(){
 
 roomSchema.methods.addPerson = async function(userID,role){
 
-    if(this.participants.find( user => user.userID == userID ))
-            throw (new AppError("the user is allready a member on the group",400,"fail"));
+    if(this.participants.find( user => String(user.userID) === String(userID) ))
+    {
+        
+         throw (new AppError("the user is allready a member on the group",400,"fail"));  
+    }
 
     this.participants.push({userID,role});
 
@@ -64,7 +68,7 @@ roomSchema.methods.addPerson = async function(userID,role){
 // test this
 roomSchema.methods.removePerson = async function(userID){
 
-    this.participants = this.participants.filter(user => user.userID != userID);
+    this.participants = this.participants.filter(user => String(user.userID) != String(userID));
 
     return this.save();
 } 

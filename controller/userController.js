@@ -15,7 +15,9 @@ let register = asyncWrapper(async (req,res,next)=>{
 
     let checkOld = await User.findOne({email:email});
 
-    if(checkOld || password.length <8) return next(new AppError("invalid email or password",400,"fail"));
+    if(checkOld ) return next(new AppError("invalid email or password",400,"fail"));
+    
+    if(password.length <8)return next(new AppError("password too short",400,"fail"));
 
     let hashedPassword = bcryptjs.hashSync(password);
 

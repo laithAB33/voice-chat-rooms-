@@ -9,45 +9,48 @@ function asyncWrapper(fn){
     }
 }
 
-// function socketWrapper(fn){
-
-//     return async (socket)=>{
-//         try{
-//             await fn(socket);
-//         }catch(err)
-//         {
-
-//             socket.emit("error",{
-//                 success: false,
-//                 message: err.message,
-//                 data: null,
-//             })
-//         }
-//     }
-
-// }
-
 function socketWrapper(fn) {
-    return async (...args) => {
-        const socket = args[0]; 
-        
+    return async (socket,...args) => {        
         try {
-            await fn(...args);
+            await fn(socket,...args);
         } catch (err) {
+
+            console.error('Socket Error:', {
+                user: socket.username,
+                error: err.message
+            });
+
             socket.emit("error", {
                 success: false,
                 message: err.message,
                 code: err.code || "INTERNAL_ERROR"
             });
             
-            // نسجل الخطأ في السيرفر
-            console.error('🚨 Socket Error:', {
-                user: socket.username,
-                event: fn.name || 'unknown',
-                error: err.message
-            });
         }
     };
 }
 
-export {asyncWrapper,socketWrapper};
+function socketWrapper2(socket,fn) {
+    return async (...args) => {        
+        try {
+            await fn(...args);
+        } catch (err) {
+
+            console.error('Socket Error:', {
+                user: socket.username,
+                error: err.message
+            });
+
+            socket.emit("error", {
+                success: false,
+                message: err.message,
+                code: err.code || "INTERNAL_ERROR"
+            });
+            
+        }
+    };
+}
+
+
+
+export {asyncWrapper,socketWrapper,socketWrapper2};

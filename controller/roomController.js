@@ -53,6 +53,6 @@ let roomMessage = asyncWrapper(async(req,res,next)=>{
 
 })
 
-
-
 export{create,getAll,roomMessage};
+
+// get users in one room

@@ -8,6 +8,11 @@ const userSchema = new Schema({
         required: [true,"name of the user is required"],
         trim: true 
     },
+    facebookId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     userName: {
         type: String,
         required: true, 
@@ -26,7 +31,6 @@ const userSchema = new Schema({
     },
     password: {
         type: String,
-        required:[true,"the password is required"],
     },
     profileImage: {
         url:{
@@ -49,6 +53,9 @@ const userSchema = new Schema({
     refreshToken:{
         type: String,
     },
+    accessToken:{
+        type:String,
+    }
 }, {
     timestamps: true     // يضيف createdAt و updatedAt تلقائياً
 });

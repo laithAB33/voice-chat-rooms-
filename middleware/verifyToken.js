@@ -10,7 +10,7 @@ let verifyToken = (req,res,next)=>{
         decoded = jwt.verify(token,process.env.ACCESS_TOKEN_SECRET);
     }catch(err){
 
-            let error = new AppError(err.message,401,"fail");
+            let error = new AppError("you need to sign up or sign in",401,"fail");
             return next(error);
     }
     req.userID = decoded.userID;
