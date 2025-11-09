@@ -1,5 +1,5 @@
 import  Express  from "express";
-import { sendSuccessResponse, sendErrorResponse } from "../utils/responeForm.js";
+import { sendSuccessResponse, sendErrorResponse } from "../view/responeForm.js";
 import { genrateToken } from "../utils/genrateToken.js";
 import passport from "passport";
 

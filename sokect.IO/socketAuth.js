@@ -11,7 +11,17 @@ let socketAuth = socketWrapper(async(socket,next)=>{
     if(!token)
         throw new AppError("you need to login",401,"fail");
  
-    let decoded = jwt.verify(token,process.env.ACCESS_TOKEN_SECRET);
+    let decoded;
+    
+    try
+    {
+        decoded = jwt.verify(token,process.env.ACCESS_TOKEN_SECRET);
+    }
+    catch(err)
+    {
+        throw new AppError("you need to login",401,"fail");
+    }
+    
 
     let user = await User.findById(decoded.userID)
 

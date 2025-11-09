@@ -497,8 +497,7 @@ function sendErrorResponse(res, errorMessage) {
             }, 3000);
         </script>
     </body>
-    </html>
-    `;
+    </html>`;
         
         res.send(html);
     }

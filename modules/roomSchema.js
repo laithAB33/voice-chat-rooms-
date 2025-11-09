@@ -17,6 +17,7 @@ const roomSchema = new Schema({
         required: true
     },
     participants:{ 
+        default:[],
         type:[{
         userID: {
             type: mongoose.Schema.Types.ObjectId,
@@ -30,9 +31,18 @@ const roomSchema = new Schema({
         joinedAt: {
             type: Date,
             default: Date.now
+        },
+        hasVoiceAccess:{
+            type:Boolean,
+            default:false
+        },
+        isMuted:{
+            type:Boolean
+        },
+        isSpeaking:{
+            type:Boolean
         }
-    }],
-    default:[]
+    }]
     },
     isActive: {
         type: Boolean,
@@ -41,6 +51,10 @@ const roomSchema = new Schema({
     maxParticipants: {
         type: Number,
         default: 50
+    },
+    maxVoiceParticipants:{
+        type:Number,
+        default:4
     }
 }, {
     timestamps: true
@@ -58,6 +72,8 @@ roomSchema.methods.addPerson = async function(userID,role){
     {
         
          throw (new AppError("the user is allready a member on the group",400,"fail"));  
+
+         return;
     }
 
     this.participants.push({userID,role});
@@ -72,8 +88,6 @@ roomSchema.methods.removePerson = async function(userID){
 
     return this.save();
 } 
-
-
 
 let Room = mongoose.model('Room', roomSchema);
 

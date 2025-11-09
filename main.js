@@ -7,11 +7,11 @@ import  Cors from "cors";
 import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 import { globalErrorHandler } from "./controller/globalErrorHandler.js";
-import {Router as userRouter} from './Routes/userRouter.js'
+import {Router as userRouter} from './Routes/userRouter.js';
 import { Router as roomRouter } from "./Routes/roomRouter.js";
 import { socketAuth } from "./sokect.IO/socketAuth.js";
 import { socketWrapper} from "./middleware/asyncWrapper.js";
-import { joinRoom , sendMessage , leaveRoom, disconnect} from "./sokect.IO/socketController.js";
+import { joinRoom , sendMessage , leaveRoom, disconnect,voiceRequest,toggleMicrophone,speakingStatus} from "./sokect.IO/socketController.js";
 import { User } from "./modules/userSchema.js";
 import { Router as OauthRouter } from "./Routes/OauthRouter.js";
 import passport from "passport";
@@ -24,8 +24,10 @@ let http = createServer(app),
         cors: {
             origin: "*",
             credentials: true,
-            allowedHeaders:["content-Type"]
-          }
+            allowedHeaders:["content-Type"],
+
+          },
+          transports: ['websocket', 'polling']
     });
 
 app.use(passport.initialize());
@@ -38,9 +40,7 @@ mongoose.connect(process.env.MONGODB_CONNECT_STR)
     console.log("mongodb connection error",err);
 })
 
-app.use(
-    Cors({credentials:true})
-);
+app.use(Cors({credentials:true}));
 app.use(Express.json());
 app.use(cookieParser());
 app.use(bodyParser.json());
@@ -70,7 +70,7 @@ io.on('connection',socketWrapper(async(socket)=>{
         profileImage:socket.profileImage,
         connectAt:new Date(),
     })
-    
+
     socket.on('join-room',joinRoom(socket));
     
     socket.on('send-message',sendMessage(socket));
@@ -78,6 +78,12 @@ io.on('connection',socketWrapper(async(socket)=>{
     socket.on('leave-Room',leaveRoom(socket));
 
     socket.on('disconnect',disconnect(socket));
+
+    socket.on('request-voice-access',voiceRequest(socket));
+
+    socket.on('toggle-microphone',toggleMicrophone(socket));
+
+    socket.on('speaking-Status',speakingStatus(socket));
 
 }))
 
@@ -92,12 +98,8 @@ app.use((req,res)=> {
     });
 })
 
-
 http.listen(port,()=>{
     console.log(`listening on port ${port}`);
 })
 
-
-// optional
 // typing message when user is typing
-// login with facebook

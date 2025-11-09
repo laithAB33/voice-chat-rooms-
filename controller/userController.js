@@ -13,12 +13,6 @@ let register = asyncWrapper(async (req,res,next)=>{
 
     let {userName,email,password} = req.body;
 
-    let checkOld = await User.findOne({email:email});
-
-    if(checkOld ) return next(new AppError("invalid email or password",400,"fail"));
-    
-    if(password.length <8)return next(new AppError("password too short",400,"fail"));
-
     let hashedPassword = bcryptjs.hashSync(password);
 
     let newUser = assignUser(req,hashedPassword);
@@ -143,22 +137,17 @@ let logout = asyncWrapper(async(req,res,next)=>{
 
 let refreshToken = asyncWrapper(async(req,res,next)=>{
 
-    if(!req.cookies?.refreshToken){
-        let error = new AppError("Unauthorized. Please login to access this resource",401,"fail");
-        return next(error);
-    }
-
+    if(!req.cookies?.refreshToken)
+        return next(new AppError("Unauthorized. Please login to access this resource",401,"fail"));
+    
     let oldRefreshToken = req.cookies.refreshToken;
 
     let foundUser = await User.findOne({refreshToken:oldRefreshToken});
     
-    if(!foundUser){
-        let error = new AppError("Unauthorized",401,"fail");
-        return next(error);
-    }
+    if(!foundUser)
+        return next(new AppError("Unauthorized",401,"fail"));
     
     let decoded = jwt.verify(oldRefreshToken, process.env.REFRESH_TOKEN_SECRET);
-
 
     if(decoded.userID !=foundUser._id)
          return next(new AppError("Unauthorized",401,"fail"));
@@ -193,12 +182,6 @@ let refreshToken = asyncWrapper(async(req,res,next)=>{
     data:{
         accessToken
     }});
-        
-
-    
-
-
- 
 
 })
 

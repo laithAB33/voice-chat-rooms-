@@ -42,7 +42,7 @@ function socketWrapper2(socket,fn) {
                         error: err.message
                     });
                 
-            socket.emit("error", {
+            socket.emit("customError", {
                 success: false,
                 message: err.message,
                 code: err.code || "INTERNAL_ERROR"

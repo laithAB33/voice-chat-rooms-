@@ -35,13 +35,11 @@ let getAll = asyncWrapper(async(req,res,next)=>{
 
         res.status(200).json({success: true ,status: "success" ,message: "all the rooms" ,data:{rooms} })
 })
-// test this later
+
 let roomMessage = asyncWrapper(async(req,res,next)=>{
 
     let {roomID} = req.params;
     let {page = 1, limit = 50} = req.query;
-
-    console.log(`${roomID}  ${page}   ${limit}`);
 
     let messages = await Message.find({roomID})
         .populate("userID","userName")
@@ -53,6 +51,13 @@ let roomMessage = asyncWrapper(async(req,res,next)=>{
 
 })
 
-export{create,getAll,roomMessage};
+let getRoom = asyncWrapper(async(req,res,next)=>{
 
-// get users in one room
+    let {roomID} = req.params;
+
+    let room = await Room.findById(roomID);
+
+    res.status(200).json({success: true ,status: "success" ,message: "room info" ,data:{room}})
+})
+
+export{create,getAll,roomMessage,getRoom};
