@@ -5,19 +5,20 @@ import passport from "passport";
 
 let Router = Express.Router();
 
-Router.route('/google').get((req,res,next)=>{
+Router.route('/google').get(passport.authenticate('google',{
+    session:false,
+    scope:[
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'openid'
+    ],
+    accessType:'offline',
+    prompt:'consent'
+}),(req,res,next)=>{
     
-    passport.authenticate('google',{
-        session:false,
-        scope:[
-            'https://www.googleapis.com/auth/userinfo.profile',
-            'https://www.googleapis.com/auth/userinfo.email',
-            'openid'
-        ],
-        // accessType:'offline',
-        // prompt:'consent'
-    })(req,res,next);
+
 })
+
 
 Router.route('/google/callback').get((req,res,next)=>{
 
@@ -49,8 +50,7 @@ Router.route('/google/callback').get((req,res,next)=>{
             sendSuccessResponse(res,user);
 
         }catch(err){
-            console.log(1111111111);
-            console.log(err);
+            
             return sendErrorResponse(res,err.message)
         }
     

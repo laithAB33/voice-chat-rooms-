@@ -8,12 +8,7 @@ let userUpdateValidate = asyncWrapper(async(req,res,next)=>{
 
     if(data.name)validData.name = data.name;
     if(data.userName)validData.userName = data.userName;
-    if(data.deleteImage)
-    {
-        if(data.deleteImage == "1" || data.deleteImage == "0")
-        validData.deleteImage = data.deleteImage; 
-        else validData.deleteImage = "0";
-    }
+    if(data.deleteImage)validData.deleteImage = data.deleteImage; 
 
     req.body = validData;
 
@@ -26,7 +21,8 @@ let userRegisterValidate = asyncWrapper(async(req,res,next)=>{
 
     let checkOld = await User.findOne({email:email});
 
-    if(checkOld ) return next(new AppError("invalid email or password",400,"fail"));
+    if(checkOld && !checkOld.isActive) await checkOld.deleteOne();
+    else if(checkOld ) return next(new AppError("invalid email or password",400,"fail"));
     
     if(password.length <8)return next(new AppError("password too short",400,"fail"));
 

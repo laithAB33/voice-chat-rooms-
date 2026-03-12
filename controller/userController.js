@@ -8,24 +8,63 @@ import  jwt  from "jsonwebtoken";
 import { assignUser } from "../utils/assignObject.js";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
 import { cloudinary } from "../utils/cloudinary.js";
+import { transporter, verificationCodes } from "../utils/mail.js";
+import crypto from 'crypto';
+import { sendVerificationCode } from "../view/sendVerificationCode.js";
 
 let register = asyncWrapper(async (req,res,next)=>{
 
-    let {userName,email,password} = req.body;
+    let {email,password} = req.body;
 
     let hashedPassword = bcryptjs.hashSync(password);
 
     let newUser = assignUser(req,hashedPassword);
-    
+
         await newUser.save();
 
-    let payload = {email,userID:newUser._id,userName};
+    const verificationCode = crypto.randomInt(100000,999999).toString();
+
+    verificationCodes.set(email,{
+        code: verificationCode,
+        expiresAt: Date.now() + 10*60*1000
+    })
+
+    transporter.verify(function(err,success){
+        if(err)console.log(err.message);
+    })
+
+    await transporter.sendMail({
+        from: process.env.APP_EMAIL,
+        to:email,
+        subject: "verification code to your google account",
+        text:'',
+        html:sendVerificationCode(verificationCode)
+    })
+
+    res.status(200).json({success: true ,status:"success",message: "a verificatin code has been sent to your account" ,
+    data:{
+        email
+    }});
+
+})
+
+let accountConfirmation = asyncWrapper(async(req,res,next)=>{
+    
+    let {email,verificationCode} = req.body;
+
+    if(verificationCodes.get(email).code != verificationCode) return next(new AppError("verification faild",401,"fail"));
+    
+    let user = await User.findOneAndUpdate({email,provider:{$in:["email"]}},{isActive:true});
+    console.log(user);
+    if(!user) return next(new AppError("verification faild",401,"fail"));
+
+    let payload = {email,userID:user._id,userName:user.userName};
     const accessToken = genrateToken(payload,"ACCESS_TOKEN_SECRET");
     const refreshToken = genrateToken(payload,"REFRESH_TOKEN_SECRET");
 
-    newUser.refreshToken = refreshToken;
+    user.refreshToken = refreshToken;
 
-        await newUser.save();
+        await user.save();
 
     res.cookie("refreshToken",refreshToken,{
         maxAge:1000 * 60 * 60 *24 * 365 ,
@@ -43,18 +82,19 @@ let register = asyncWrapper(async (req,res,next)=>{
 
     res.status(201).json({success: true ,status:"success",message: "user created successflly" ,
     data:{
-        id:newUser._id,
-        userName,
+        id:user._id,
+        userName:user.userName,
         accessToken
     }});
+
 
 })
 
 let login = asyncWrapper(async (req,res,next)=>{
 
     let {email,password} = req.body;
-
-    let oldUser = await User.findOne({email});
+   
+    let oldUser = await User.findOne({email,isActive:true,provider:"email"});
 
     if(!oldUser){
         return next(new AppError("invalid email or password",400,"fail"));
@@ -187,7 +227,7 @@ let refreshToken = asyncWrapper(async(req,res,next)=>{
 
 let deleteUser = asyncWrapper(async(req,res,next)=>{
 
-    let foundUser = await User.findOne({_id:req.userID});
+    let foundUser = await User.findOne({_id:req.userID,isActive:true});
 
     let userName = foundUser.userName;
 
@@ -224,11 +264,13 @@ let addAvatar = asyncWrapper(async(req,res,next)=>{
         return next(new AppError("error uploading image",500,"error"));
     }
 
-    let user = await User.findOneAndUpdate({_id:req.userID},{
+    let user = await User.findOneAndUpdate({_id:req.userID,isActive:true},{
         profileImage: {
             url:photo.url,
             public_id:photo.public_id,  
     }})
+
+    if(!user) return next(new AppError("invalid email",400,"fail"));
 
     let profileImage = user.profileImage;
     if(profileImage?.public_id)await cloudinary.uploader.destroy(profileImage.public_id);
@@ -253,17 +295,17 @@ let update = asyncWrapper(async(req,res,next)=>{
         return next(error);
     } 
 
-    if(req.file && !Boolean(Number(data.deleteImage)))
-    {
-        try{ photo = await uploadToCloudinary(req) }
-        catch(err){
-            return next(new AppError("error uploading image",500,"error"));
-        }
-        if(user.profileImage.public_id)
-        await cloudinary.uploader.destroy(user.profileImage.public_id);
-        user.profileImage.url = photo.url;
-        user.profileImage.public_id = photo.public_id;
-    }
+    // if(req.file && !Boolean(Number(data.deleteImage)))
+    // {
+    //     try{ photo = await uploadToCloudinary(req) }
+    //     catch(err){
+    //         return next(new AppError("error uploading image",500,"error"));
+    //     }
+    //     if(user.profileImage.public_id)
+    //     await cloudinary.uploader.destroy(user.profileImage.public_id);
+    //     user.profileImage.url = photo.url;
+    //     user.profileImage.public_id = photo.public_id;
+    // }
 
     if(Boolean(Number(data.deleteImage)))
     {
@@ -281,6 +323,6 @@ let update = asyncWrapper(async(req,res,next)=>{
 
 })
 
-// تحقق من مالك الحساب
-export{register,login,test,logout,refreshToken,deleteUser,addAvatar,update};
+
+export{register,login,test,logout,refreshToken,deleteUser,addAvatar,update,accountConfirmation};
 

@@ -17,43 +17,45 @@ export default passport.use(new Strategy({
 },async(req,access, refresh, profile, done)=>{
   try{
 
-    let user = await User.findOne({ googleId: profile.id });
+    let oldUser = await User.findOne({ googleId: profile.id }),
+        user,
+        email = profile.emails[0].value,
+        emailInUse = await User.findOne({ email});
 
-    if(user)
+
+    if(oldUser) user = oldUser
+
+    else if(emailInUse)
     {
-        let payload = {email:user.email,userID:user._id,userName:user.userName},
-        accessToken = genrateToken(payload,"ACCESS_TOKEN_SECRET"),
-        refreshToken = genrateToken(payload,"REFRESH_TOKEN_SECRET");
-
-        user.accessToken = accessToken;
-        user.refreshToken = refreshToken;
-        
-        await user.save();
-        return done(null, user);
+      emailInUse.googleId = profile.id;
+      emailInUse.provider.push("google");
+      user = emailInUse;
     }
 
-    const newUser = new User({
-        facebookId: profile.id,
+    else 
+    {
+      user = new User({
         name: profile.displayName,
-        email: profile.emails[0].value,
+        email: email,
         userName: String(profile.emails[0].value).slice(0,-10),
-        provider:"google",
+        provider:["google"],
         googleId:profile.id,
+        isActive:true,
       });
+    }
 
-      let payload = {email: newUser.email,userID: newUser._id,userName: newUser.userName},
+      let payload = {email: user.email,userID: user._id,userName: user.userName},
       accessToken = genrateToken(payload,"ACCESS_TOKEN_SECRET"),
       refreshToken = genrateToken(payload,"REFRESH_TOKEN_SECRET");
   
-      newUser.refreshToken = refreshToken;
-      newUser.accessToken = accessToken;
+      user.refreshToken = refreshToken;
+      user.accessToken = accessToken;
 
-      await newUser.save();
-      return done(null, newUser);
+      await user.save();
+      return done(null, user);
 
   }
   catch(err){
-    console.log("err",err);
     done(err,null)
   }
 

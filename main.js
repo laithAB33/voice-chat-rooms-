@@ -12,12 +12,11 @@ import { Router as roomRouter } from "./Routes/roomRouter.js";
 import { socketAuth } from "./sokect.IO/socketAuth.js";
 import { socketWrapper} from "./middleware/asyncWrapper.js";
 import { joinRoom , sendMessage , leaveRoom, disconnect,voiceRequest,toggleMicrophone,speakingStatus,voiceData} from "./sokect.IO/socketController.js";
-import { User } from "./modules/userSchema.js";
 import { Router as OauthRouter } from "./Routes/OauthRouter.js";
 import passport from "passport";
 
 let app = Express(),
-    port = process.env.PORT || 3000;
+    port = process.env.PORT;
 
 let http = createServer(app),
     io = new Server(http, {
@@ -30,6 +29,7 @@ let http = createServer(app),
           transports: ['websocket', 'polling']
     });
 
+    
 app.use(passport.initialize());
 import './strategy/googleStrategy.js';
 
@@ -59,8 +59,6 @@ let userRooms = new Map(); // userID : roomID
 export{connectedUsers,userRooms,io};
 
 io.on('connection',socketWrapper(async(socket)=>{
-
-    console.log(`client is connected userName ${socket.userName}\n conection: ${socket.id}\n`);
 
     connectedUsers.set(socket.id,{
         userName:socket.userName,

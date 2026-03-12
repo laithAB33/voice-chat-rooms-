@@ -17,7 +17,7 @@ const userSchema = new Schema({
         type: String,
         required: true, 
         unique: [true, "allready used username"],
-        trim: true       // إزالة المسافات
+        trim: true       
     },
     email: {
         type: String,
@@ -53,13 +53,34 @@ const userSchema = new Schema({
         type:String,
     },
     provider:{
-        type:String,
-        default:"email"
+        type:[String],
+        required:[true,"you need to Determine the access provider"],
+        default:[]
+    },
+    isActive:{
+        type:Boolean,
+        default:false,
+    },
+    expire:{
+        type:Date,
+        default: new Date(Date.now()+ 60*1000)
     }
 }, {
     timestamps: true     // يضيف createdAt و updatedAt تلقائياً
 });
 
 let User = mongoose.model('User', userSchema);
+
+User.collection.dropIndex('expire_1',{ignoreErrors:true});
+
+User.collection.createIndex(
+    {expire:1},
+    {
+        expireAfterSeconds:60*15,
+        partialFilterExpression:{
+            isActive:false,
+        }
+    }
+)
 
 export{User}

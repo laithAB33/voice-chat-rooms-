@@ -7,8 +7,6 @@ import { User } from "../modules/userSchema.js";
 
 let joinRoom = (socket)=> socketWrapper2(socket,async(roomID,role)=>{
 
-    console.log(`${socket.userName} tried to enter ${roomID}`);
-
     if(!roomID)
         throw new AppError("the room id is requied",400,"fail");
 
@@ -45,8 +43,6 @@ let joinRoom = (socket)=> socketWrapper2(socket,async(roomID,role)=>{
     })
 
     await systemMessage.save();
-
-    // let voiceParticipants = room.participants.find(user=> user.hasVoiceAccess == true)
 
     socket.emit('room-joined',{
         success:true,
@@ -135,11 +131,7 @@ let leaveRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
 
     if(!room) throw new AppError("the room id is not valid",400,"fail");
 
-    console.log(room);
-
     await room.removePerson(socket.userID);
-
-    console.log("done");
 
     const systemMessage = new Message({
         roomID:socket.currentRoom,
@@ -238,11 +230,9 @@ let voiceRequest = (socket)=> socketWrapper2(socket,async(roomID)=>{
 
     if(user.hasVoiceAccess) throw new AppError("you allready have a voice access",400,"fail");
 
-    let voiceParticipants = room.participants.find(user=> user.hasVoiceAccess == true);
+    let voiceParticipants = room.participants.filter(user=> user.hasVoiceAccess == true);
 
     if(!voiceParticipants) voiceParticipants = [];
-
-    console.log("voiceParticipants",voiceParticipants);
 
     if(voiceParticipants.length >= room.maxVoiceParticipants)
         throw new AppError("there is no available audio seats",400,"fail");

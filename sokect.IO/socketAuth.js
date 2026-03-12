@@ -23,7 +23,7 @@ let socketAuth = socketWrapper(async(socket,next)=>{
     }
     
     let user = await User.findById(decoded.userID)
-
+    
     if(!user)
     {
         throw new AppError("Unauthorized",401,"fail")
