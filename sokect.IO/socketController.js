@@ -217,9 +217,6 @@ let voiceRequest = (socket)=> socketWrapper2(socket,async(roomID)=>{
     if(!roomID)
     throw new AppError("not a valid roomID",400,"fail");
 
-    // if (!socket.currentRoom || socket.currentRoom !== roomID)
-    // throw new AppError("need to join room first",400,"fail");
-
     const room = await Room.findById(roomID);
 
     if(!room) throw new AppError("the room not found",400,"fail");
@@ -239,6 +236,7 @@ let voiceRequest = (socket)=> socketWrapper2(socket,async(roomID)=>{
 
     user.isMuted = false;
     user.hasVoiceAccess = true;
+    
 
     await room.save();
 

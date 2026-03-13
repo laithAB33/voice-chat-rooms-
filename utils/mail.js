@@ -1,6 +1,9 @@
 import nodemailer from 'nodemailer';
 
 let transporter = nodemailer.createTransport({
+    host:'smtp.gmail.com',
+    post:465,
+    secure:true,
     service:'gmail',
     auth:{
         user: process.env.APP_EMAIL,
