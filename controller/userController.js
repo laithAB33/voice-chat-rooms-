@@ -29,9 +29,7 @@ let register = asyncWrapper(async (req,res,next)=>{
         expiresAt: Date.now() + 10*60*1000
     })
 
-    transporter.verify(function(err,success){
-        if(err)console.log(err.message);
-    })
+    await transporter.verify();
 
     await transporter.sendMail({
         from: process.env.APP_EMAIL,
