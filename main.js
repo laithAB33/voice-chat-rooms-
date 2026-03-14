@@ -51,18 +51,6 @@ app.use('/auth',OauthRouter);
 app.use('/api/user',userRouter);
 app.use('/api/room',roomRouter);
 
-
-// import { Resend } from 'resend';
-
-// const resend = new Resend('re_iUsq8AH2_9rfaXzqoGY3kve61aKPUr3YX');
-
-// resend.emails.send({
-//   from: 'onboarding@resend.dev',
-//   to: 'lithtartus@gmail.com',
-//   subject: 'Hello World',
-//   html: '<p>Congrats on sending your <strong>first email</strong>!</p>'
-// });
-
 io.use(socketAuth);
 
 let connectedUsers = new Map(); //socketID : userData

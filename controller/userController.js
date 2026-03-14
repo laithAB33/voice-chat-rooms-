@@ -11,7 +11,7 @@ import { cloudinary } from "../utils/cloudinary.js";
 import { transporter, verificationCodes } from "../utils/mail.js";
 import crypto from 'crypto';
 import { sendVerificationCode } from "../view/sendVerificationCode.js";
-import { Resend } from 'resend';
+
 let register = asyncWrapper(async (req,res,next)=>{
 
     let {email,password} = req.body;
@@ -29,25 +29,18 @@ let register = asyncWrapper(async (req,res,next)=>{
         expiresAt: Date.now() + 10*60*1000
     })
 
-    // await transporter.verify();
+    await transporter.verify();
 
-    // await transporter.sendMail({
-    //     from: process.env.APP_EMAIL,
-    //     to:email,
-    //     subject: "verification code to your google account",
-    //     text:'',
-    //     html:sendVerificationCode(verificationCode)
-    // })
+    await transporter.sendMail({
+        from: process.env.APP_EMAIL,
+        to:email,
+        subject: "verification code to your google account",
+        text:'',
+        html:sendVerificationCode(verificationCode)
+    })
 
 
-    const resend = new Resend('re_iUsq8AH2_9rfaXzqoGY3kve61aKPUr3YX');
-    
-    resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: email,
-      subject: 'verification code to your google account',
-      html: sendVerificationCode(verificationCode)
-    });
+
     
     res.status(200).json({success: true ,status:"success",message: "a verificatin code has been sent to your account" ,
     data:{
