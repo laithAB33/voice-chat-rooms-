@@ -1,5 +1,5 @@
 import  Express  from "express";
-import {register,login,test,logout,refreshToken,deleteUser,addAvatar,update,accountConfirmation} from "../controller/userController.js";
+import {register,login,test,logout,refreshToken,deleteUser,addAvatar,update} from "../controller/userController.js";
 import {verifyToken} from "../middleware/verifyToken.js" ;
 import { upload } from "../middleware/multer.js";
 import { userUpdateValidate, userRegisterValidate } from "../middleware/userValidate.js";
@@ -11,7 +11,6 @@ Router.route('/')
                 .delete(verifyToken,deleteUser)
                 .patch(verifyToken,upload.single('image'),userUpdateValidate,update);
 
-Router.route('/verification').post(upload.none(),accountConfirmation);
 
 Router.route('/avater').post(verifyToken,upload.single('image'),addAvatar);
 

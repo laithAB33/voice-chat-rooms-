@@ -8,9 +8,6 @@ import  jwt  from "jsonwebtoken";
 import { assignUser } from "../utils/assignObject.js";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
 import { cloudinary } from "../utils/cloudinary.js";
-import { transporter, verificationCodes } from "../utils/mail.js";
-import crypto from 'crypto';
-import { sendVerificationCode } from "../view/sendVerificationCode.js";
 
 let register = asyncWrapper(async (req,res,next)=>{
 
@@ -22,74 +19,40 @@ let register = asyncWrapper(async (req,res,next)=>{
 
         await newUser.save();
 
-    const verificationCode = crypto.randomInt(100000,999999).toString();
-
-    verificationCodes.set(email,{
-        code: verificationCode,
-        expiresAt: Date.now() + 10*60*1000
-    })
-
-    await transporter.verify();
-
-    await transporter.sendMail({
-        from: process.env.APP_EMAIL,
-        to:email,
-        subject: "verification code to your google account",
-        text:'',
-        html:sendVerificationCode(verificationCode)
-    })
-
-
-
     
-    res.status(200).json({success: true ,status:"success",message: "a verificatin code has been sent to your account" ,
-    data:{
-        email
-    }});
+
+        let payload = {email,userID:newUser._id,userName:newUser.userName};
+        const accessToken = genrateToken(payload,"ACCESS_TOKEN_SECRET");
+        const refreshToken = genrateToken(payload,"REFRESH_TOKEN_SECRET");
+    
+        newUser.refreshToken = refreshToken;
+    
+            await newUser.save();
+    
+        res.cookie("refreshToken",refreshToken,{
+            maxAge:1000 * 60 * 60 *24 * 365 ,
+            httpOnly:true,
+            secure : process.env.NODE_ENV == 'production',
+            samesite: 'strict',
+        })
+    
+        res.cookie("accessToken",accessToken,{
+            maxAge:1000 * 60 * 30,
+            httpOnly:true,
+            secure : process.env.NODE_ENV == 'production',
+            samesite: 'strict',
+        })
+    
+        res.status(201).json({success: true ,status:"success",message: "user created successflly" ,
+        data:{
+            id:newUser._id,
+            userName:newUser.userName,
+            accessToken
+        }});
 
 })
 
-let accountConfirmation = asyncWrapper(async(req,res,next)=>{
-    
-    let {email,verificationCode} = req.body;
 
-    if(verificationCodes.get(email).code != verificationCode) return next(new AppError("verification faild",401,"fail"));
-    
-    let user = await User.findOneAndUpdate({email,provider:{$in:["email"]}},{isActive:true});
-    console.log(user);
-    if(!user) return next(new AppError("verification faild",401,"fail"));
-
-    let payload = {email,userID:user._id,userName:user.userName};
-    const accessToken = genrateToken(payload,"ACCESS_TOKEN_SECRET");
-    const refreshToken = genrateToken(payload,"REFRESH_TOKEN_SECRET");
-
-    user.refreshToken = refreshToken;
-
-        await user.save();
-
-    res.cookie("refreshToken",refreshToken,{
-        maxAge:1000 * 60 * 60 *24 * 365 ,
-        httpOnly:true,
-        secure : process.env.NODE_ENV == 'production',
-        samesite: 'strict',
-    })
-
-    res.cookie("accessToken",accessToken,{
-        maxAge:1000 * 60 * 30,
-        httpOnly:true,
-        secure : process.env.NODE_ENV == 'production',
-        samesite: 'strict',
-    })
-
-    res.status(201).json({success: true ,status:"success",message: "user created successflly" ,
-    data:{
-        id:user._id,
-        userName:user.userName,
-        accessToken
-    }});
-
-
-})
 
 let login = asyncWrapper(async (req,res,next)=>{
 
@@ -325,5 +288,5 @@ let update = asyncWrapper(async(req,res,next)=>{
 })
 
 
-export{register,login,test,logout,refreshToken,deleteUser,addAvatar,update,accountConfirmation};
+export{register,login,test,logout,refreshToken,deleteUser,addAvatar,update};
 
