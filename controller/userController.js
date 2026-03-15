@@ -13,21 +13,33 @@ let register = asyncWrapper(async (req,res,next)=>{
 
     let {email,password} = req.body;
 
+    let checkOld = await User.findOne({email:email}),user;
+
+    if(checkOld && checkOld.provider.includes("email"))return next(new AppError("invalid email or password",400,"fail"));
+    
+    if(password.length <8)return next(new AppError("password too short",400,"fail"));
+
     let hashedPassword = bcryptjs.hashSync(password);
 
-    let newUser = assignUser(req,hashedPassword);
+    if(checkOld)
+    {
+        checkOld.password = hashedPassword;
+        checkOld.provider.push("email")
+    }
+    else
+        user = assignUser(req,hashedPassword);
 
-        await newUser.save();
+        user = user?user:checkOld;
 
-    
+        await user.save();
 
-        let payload = {email,userID:newUser._id,userName:newUser.userName};
+        let payload = {email,userID:user._id,userName:user.userName};
         const accessToken = genrateToken(payload,"ACCESS_TOKEN_SECRET");
         const refreshToken = genrateToken(payload,"REFRESH_TOKEN_SECRET");
     
-        newUser.refreshToken = refreshToken;
+        user.refreshToken = refreshToken;
     
-            await newUser.save();
+            await user.save();
     
         res.cookie("refreshToken",refreshToken,{
             maxAge:1000 * 60 * 60 *24 * 365 ,
@@ -45,8 +57,8 @@ let register = asyncWrapper(async (req,res,next)=>{
     
         res.status(201).json({success: true ,status:"success",message: "user created successflly" ,
         data:{
-            id:newUser._id,
-            userName:newUser.userName,
+            id:user._id,
+            userName:user.userName,
             accessToken
         }});
 

@@ -9,7 +9,6 @@ let assignUser = (req,hashedPassword)=>{
         userName,
         email,
         password:hashedPassword,
-        isActive:false,
         provider:["email"],
     })
 

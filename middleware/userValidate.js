@@ -17,13 +17,7 @@ let userUpdateValidate = asyncWrapper(async(req,res,next)=>{
 
 let userRegisterValidate = asyncWrapper(async(req,res,next)=>{
 
-    let {email,password} = req.body;
 
-    let checkOld = await User.findOne({email:email});
-
-    if(checkOld ) return next(new AppError("invalid email or password",400,"fail"));
-    
-    if(password.length <8)return next(new AppError("password too short",400,"fail"));
 
     next();
 })
