@@ -57,10 +57,6 @@ const userSchema = new Schema({
         required:[true,"you need to Determine the access provider"],
         default:[]
     },
-    isActive:{
-        type:Boolean,
-        default:false,
-    },
     expire:{
         type:Date,
         default: new Date(Date.now()+ 60*1000)
@@ -72,14 +68,14 @@ const userSchema = new Schema({
 let User = mongoose.model('User', userSchema);
 
 
-User.collection.createIndex(
-    {expire:1},
-    {
-        expireAfterSeconds:60*15,
-        partialFilterExpression:{
-            isActive:false,
-        }
-    }
-)
+// User.collection.createIndex(
+//     {expire:1},
+//     {
+//         expireAfterSeconds:60*15,
+//         partialFilterExpression:{
+//             isActive:false,
+//         }
+//     }
+// )
 
 export{User}

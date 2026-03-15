@@ -21,8 +21,7 @@ let userRegisterValidate = asyncWrapper(async(req,res,next)=>{
 
     let checkOld = await User.findOne({email:email});
 
-    if(checkOld && !checkOld.isActive) await checkOld.deleteOne();
-    else if(checkOld ) return next(new AppError("invalid email or password",400,"fail"));
+    if(checkOld ) return next(new AppError("invalid email or password",400,"fail"));
     
     if(password.length <8)return next(new AppError("password too short",400,"fail"));
 

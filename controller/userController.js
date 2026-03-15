@@ -52,13 +52,11 @@ let register = asyncWrapper(async (req,res,next)=>{
 
 })
 
-
-
 let login = asyncWrapper(async (req,res,next)=>{
 
     let {email,password} = req.body;
    
-    let oldUser = await User.findOne({email,isActive:true,provider:"email"});
+    let oldUser = await User.findOne({email,provider:"email"});
 
     if(!oldUser){
         return next(new AppError("invalid email or password",400,"fail"));
@@ -191,14 +189,14 @@ let refreshToken = asyncWrapper(async(req,res,next)=>{
 
 let deleteUser = asyncWrapper(async(req,res,next)=>{
 
-    let foundUser = await User.findOne({_id:req.userID,isActive:true});
-
-    let userName = foundUser.userName;
+    let foundUser = await User.findOne({_id:req.userID});
 
     if(!foundUser){
 
         return res.status(200).json({success:true, status:"success", message:"you have already deleted the user", data:null})
     }
+
+    let userName = foundUser.userName;
 
     let profileImage = foundUser.profileImage;
 
@@ -228,7 +226,7 @@ let addAvatar = asyncWrapper(async(req,res,next)=>{
         return next(new AppError("error uploading image",500,"error"));
     }
 
-    let user = await User.findOneAndUpdate({_id:req.userID,isActive:true},{
+    let user = await User.findOneAndUpdate({_id:req.userID},{
         profileImage: {
             url:photo.url,
             public_id:photo.public_id,  
@@ -258,18 +256,6 @@ let update = asyncWrapper(async(req,res,next)=>{
         let error = new AppError("user not found",400,"fail");
         return next(error);
     } 
-
-    // if(req.file && !Boolean(Number(data.deleteImage)))
-    // {
-    //     try{ photo = await uploadToCloudinary(req) }
-    //     catch(err){
-    //         return next(new AppError("error uploading image",500,"error"));
-    //     }
-    //     if(user.profileImage.public_id)
-    //     await cloudinary.uploader.destroy(user.profileImage.public_id);
-    //     user.profileImage.url = photo.url;
-    //     user.profileImage.public_id = photo.public_id;
-    // }
 
     if(Boolean(Number(data.deleteImage)))
     {
