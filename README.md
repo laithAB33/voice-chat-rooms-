@@ -48,6 +48,7 @@
 
 ## 5 extra
 | الحدث (Event) | الجهة | البيانات (Payload) | الوصف |
+| :--- | :---: | :--- | :--- |
 | `disconnect` | 📱 Client | no data | طلب ل فصل الاتصال |
 | `user-disconnected` | 📱 Client | `{userName,message}` | تنبيه أعضاء الغرفة انقطاع اتصال العميل |
 | `customError` | 💻 Server | `{success,message,code}` | في حال حدوث اي خطاء يرسل من خلالها |
