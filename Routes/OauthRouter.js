@@ -33,21 +33,24 @@ Router.route('/google/callback').get((req,res,next)=>{
             let accessToken = genrateToken(payload,"ACCESS_TOKEN_SECRET"),
             refreshToken = genrateToken(payload,"REFRESH_TOKEN_SECRET");
             
-            res.cookie("refreshToken",refreshToken,{
-                maxAge:1000 * 60 * 60 *24 * 365 ,
-                httpOnly:true,
-                secure : process.env.NODE_ENV == 'production',
-                samesite: 'strict',
-            })
+            // res.cookie("refreshToken",refreshToken,{
+            //     maxAge:1000 * 60 * 60 *24 * 365 ,
+            //     httpOnly:true,
+            //     secure : process.env.NODE_ENV == 'production',
+            //     samesite: 'strict',
+            // })
         
-            res.cookie("accessToken",accessToken,{
-                maxAge:1000 * 60 * 30,
-                httpOnly:true,
-                secure : process.env.NODE_ENV == 'production',
-                samesite: 'strict',
-            })
+            // res.cookie("accessToken",accessToken,{
+            //     maxAge:1000 * 60 * 30,
+            //     httpOnly:true,
+            //     secure : process.env.NODE_ENV == 'production',
+            //     samesite: 'strict',
+            // })
 
-            sendSuccessResponse(res,user);
+            // sendSuccessResponse(res,user);
+
+            return res.redirect(`voxchat://auth-token?token=${accessToken}&refreshToken=${refreshToken}`)
+
 
         }catch(err){
             
