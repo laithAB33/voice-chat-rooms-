@@ -1,18 +1,14 @@
 import mongoose,{Schema} from "mongoose";
 
-const messageSchema = new Schema({
-    roomID: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Room',
-        required: true
-    },
-    userID: {
+const priviteMessageSchema = new Schema({
+    senderID: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    userName: {
-        type: String,
+    receiverID: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
         required: true
     },
     message: {
@@ -33,13 +29,15 @@ const messageSchema = new Schema({
             type:String,
             default:null,
         }
+    },
+    delivered:{
+        type:Boolean,
+        default:false
     }
 }, {
     timestamps: true
 });
 
-messageSchema.index({ roomID: 1, createdAt: 1 });
+let PriviteMessage = mongoose.model('priviteMessage', priviteMessageSchema);
 
-let Message = mongoose.model('Message', messageSchema);
-
-export{Message};
+export{PriviteMessage};

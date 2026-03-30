@@ -5,7 +5,8 @@ const roomSchema = new Schema({
     name: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
+        minLength: 4,
     },
     description: {
         type: String,
@@ -13,8 +14,9 @@ const roomSchema = new Schema({
     },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId, 
-        ref: 'User',                         
-        required: true
+        ref: 'User',
+        required: true,
+        unique: [true,"user can crate only one room"]
     },
     participants:{ 
         default:[],
@@ -25,7 +27,7 @@ const roomSchema = new Schema({
         },
         role: {
             type: String,
-            enum: ['member', 'admin'], // قيم محددة مسموحة
+            enum: ['member', 'admin','owner'],
             default: 'member'
         },
         joinedAt: {
@@ -55,6 +57,16 @@ const roomSchema = new Schema({
     maxVoiceParticipants:{
         type:Number,
         default:4
+    },
+    image: {
+        url:{
+            type:String,
+            default:null,
+        },
+        public_id:{
+            type:String,
+            default:null,
+        }     
     }
 }, {
     timestamps: true
@@ -71,7 +83,7 @@ roomSchema.methods.addPerson = async function(userID,role){
     if(this.participants.find( user => String(user.userID) === String(userID) ))
     {
         
-         throw (new AppError("the user is allready a member on the group",400,"fail"));  
+        //  throw (new AppError("the user is allready a member on the group",400,"fail"));  
 
          return;
     }

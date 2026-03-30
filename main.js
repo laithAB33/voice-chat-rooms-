@@ -11,10 +11,12 @@ import {Router as userRouter} from './Routes/userRouter.js';
 import { Router as roomRouter } from "./Routes/roomRouter.js";
 import { socketAuth } from "./sokect.IO/socketAuth.js";
 import { socketWrapper} from "./middleware/asyncWrapper.js";
-import { joinRoom , sendMessage , leaveRoom, disconnect,voiceRequest,toggleMicrophone,speakingStatus,voiceData} from "./sokect.IO/socketController.js";
+import { joinRoom , sendMessage , leaveRoom, disconnect,voiceRequest,toggleMicrophone,speakingStatus,voiceData,priviteMessage,sendInvitation,acceptInvitation,acceptInvitationToMicrophone,inviteToMicrophone} from "./sokect.IO/socketController.js";
 import { Router as OauthRouter } from "./Routes/OauthRouter.js";
 import passport from "passport";
 
+let states = new Map(),
+invitationToMic = new Map();
 let app = Express(),
     port = process.env.PORT;
 
@@ -39,6 +41,8 @@ mongoose.connect(process.env.MONGODB_CONNECT_STR)
 }).catch((err)=>{
     console.log("mongodb connection error",err);
 })
+
+export{states,invitationToMic};
 
 app.use(Cors({credentials:true}));
 app.use(Express.json());
@@ -83,6 +87,15 @@ io.on('connection',socketWrapper(async(socket)=>{
 
     socket.on('voice-data',voiceData(socket));
 
+    socket.on('privite-message',priviteMessage(socket));
+
+    socket.on('send-invitation',sendInvitation(socket));
+
+    socket.on('accept-invitation',acceptInvitation(socket));
+
+    socket.on('invite-to-microphone',inviteToMicrophone(socket));
+
+    socket.on('accept-invitation-to-microphone',acceptInvitationToMicrophone(socket));
 }))
 
 app.use(globalErrorHandler);
@@ -100,5 +113,3 @@ http.listen(port,()=>{
     console.log(`listening on port ${port}`);
 })
 
-// typing message when user is typing
-// admin of group is disconected

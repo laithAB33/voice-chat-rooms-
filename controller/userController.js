@@ -8,6 +8,8 @@ import  jwt  from "jsonwebtoken";
 import { assignUser } from "../utils/assignObject.js";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
 import { cloudinary } from "../utils/cloudinary.js";
+import { PriviteMessage } from "../modules/priviteMessageSchema.js";
+import { Invitation } from "../modules/invitationSchema.js";
 
 let register = asyncWrapper(async (req,res,next)=>{
 
@@ -212,7 +214,7 @@ let deleteUser = asyncWrapper(async(req,res,next)=>{
 
     let profileImage = foundUser.profileImage;
 
-    if(profileImage.public_id)await cloudinary.uploader.destroy(profileImage.public_id);        
+    if(profileImage?.public_id)await cloudinary.uploader.destroy(profileImage.public_id);        
     
     await foundUser.deleteOne();
     
@@ -285,6 +287,36 @@ let update = asyncWrapper(async(req,res,next)=>{
 
 })
 
+let getNewInvitation = asyncWrapper(async(req,res,next)=>{
 
-export{register,login,test,logout,refreshToken,deleteUser,addAvatar,update};
+    let NewInvitations = await Invitation.find({receiverID:req.userID,type:"toRoom",delivered:false})
+
+    for(let invitation of NewInvitations)
+    {
+        invitation.delivered = true;
+        await invitation.save();
+    }
+
+
+    res.status(200).json({success:true,status:"success",message:"new invitations delivered",data:{NewInvitation}})
+})
+
+let getNewMessages = asyncWrapper(async(req,res,next)=>{
+
+    let NewMessages = await PriviteMessage.find({receiverID:req.userID,delivered:false});
+
+    for(let message of NewMessages)
+    {
+        message.delivered = true;
+        await message.save();
+    }
+
+
+    
+
+    res.status(200).json({success:true,status:"success",message:"new message delivered",data:{NewMessages}})
+})
+
+
+export{register,login,test,logout,refreshToken,deleteUser,addAvatar,update,getNewInvitation,getNewMessages};
 

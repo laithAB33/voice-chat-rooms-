@@ -15,11 +15,4 @@ let userUpdateValidate = asyncWrapper(async(req,res,next)=>{
     next();
 })
 
-let userRegisterValidate = asyncWrapper(async(req,res,next)=>{
-
-
-
-    next();
-})
-
-export {userUpdateValidate,userRegisterValidate};
+export {userUpdateValidate};

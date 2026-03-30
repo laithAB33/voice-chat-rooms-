@@ -3,6 +3,7 @@ import { Strategy } from "passport-google-oauth20";
 import { User } from "../modules/userSchema.js";
 import { genrateToken } from "../utils/genrateToken.js";
 
+
 export default passport.use(new Strategy({
 
     clientID: process.env.GOOGLE_CLIENT_ID,
