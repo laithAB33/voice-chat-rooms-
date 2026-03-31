@@ -42,7 +42,6 @@
 | `invite-to-microphone` | 📱 Client | `{userID,roomID}` | دعوة للمايك
 | `invite-toMic-send` | 💻 Server | `{senderID,receiverID:userID,roomID,}` | تاكيد ارسال 
 | `invite-toMic-received` | 💻 Server | `{senderID,receiverID,roomID}` | تاكيد استلام
- 
 | `accept-invitation-to-microphone` | 📱 Client | `{userID,roomID}` | قبول دعوة للمايك
 | `joined-mic` | 💻 Serve | `{senderID,receiverID,roomID}` | تاكيد دخول المجموعة
 | `user-joined-mic` | 💻 Serve | `{senderID,receiverID,roomID,messages,}` | اعلام الغرفة بدخول شخص للمجموعة
