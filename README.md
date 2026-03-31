@@ -14,6 +14,12 @@
 | `leave-Room` | 📱 Client | `roomID` | طلب مغادرة الغرفة |
 | `user-left` | 💻 Server | `{userName,message}` |  تنبيه الأعضاء بخروج العميل
 | `room-left` | 💻 Server | `{success, message}` | تأكيد الخروج للعميل |
+| `send-invitation` | 📱 Client | `{userID,roomID}` | ارسال دعوة للغرفة
+| `invitation-sent` | 💻 Server | `{senderID,receiverIDroomID,delivered}` | تاكيد ارسال الدعوة
+| `invitation-received` | 💻 Server | `{senderID,receiverID,roomID,delivered}` | استلام الدعوة
+| `accept-invitation` | 📱 Client | `{userID,roomID,accept}` | ارسال قبول للدعوة
+| `room-joined` | 💻 Server | `{success:true,room,messages,systemMessage}` | تاكيد انضمام
+| `user-joined` | 💻 Server | `{userName,messages,timestamps,participants,isSpeaking,hasVoiceAccess}` | اعلام الغروب بدخول المستخدم
 
 ---
 
@@ -22,7 +28,9 @@
 | :--- | :---: | :--- | :--- |
 | `send-message` | 📱 Client | `{message, messageType:(defualt:text), roomID,fileUrl:(optinal)}` | إرسال رسالة نصية أو ملف |
 | `new-message` | 💻 Server | `{MassageID, userName, message}` | بث الرسالة لجميع أعضاء الغرفة |
-
+| `privite-message` | 📱 Client | `{message, messageType:(defualt:text), roomID,fileUrl:(optinal)}` | ارسال رسالة نصية لشخص
+| `message-sent` | 💻 Server | `{senderID,receiverID,message,messageType,delivered:}` | تأكيد ارسال الرسالة الخاصة
+| `message-received` | 💻 Server | `{senderID,receiverID,message,messageType,delivered}` | استلام رسائل الخاصة
 ---
 
 ## 3️ الصلاحيات الصوتية (Voice Access)
@@ -31,6 +39,13 @@
 | `request-voice-access` | 📱 Client | `roomID` | طلب تصريح للتحدث |
 | `voice-access-granted` | 💻 Server | `{success, currentParticipants}` | الموافقة وفتح الميكروفون للعميل |
 | `user-joined-voice` | 💻 Server | `{userId, username, isMuted}` | تنبيه الغرفة بأن العميل أصبح متحدثاً |
+| `invite-to-microphone` | 📱 Client | `{userID,roomID}` | دعوة للمايك
+| `invite-toMic-send` | 💻 Server | `{senderID,receiverID:userID,roomID,}` | تاكيد ارسال 
+| `invite-toMic-received` | 💻 Server | `{senderID,receiverID,roomID}` | تاكيد استلام
+ 
+| `accept-invitation-to-microphone` | 📱 Client | `{userID,roomID}` | قبول دعوة للمايك
+| `joined-mic` | 💻 Serve | `{senderID,receiverID,roomID}` | تاكيد دخول المجموعة
+| `user-joined-mic` | 💻 Serve | `{senderID,receiverID,roomID,messages,}` | اعلام الغرفة بدخول شخص للمجموعة
 
 ---
 
