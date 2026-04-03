@@ -7,6 +7,7 @@ import { states } from "../main.js";
 import { asyncWrapper } from "../middleware/asyncWrapper.js";
 import { AppError } from "../utils/appError.js";
 import { upload } from "../middleware/multer.js";
+import { User } from "../modules/userSchema.js";
 
 let Router = Express.Router();
 
@@ -33,6 +34,7 @@ Router.route('/google/callback').get((req,res,next)=>{
     
         try{
     
+            console.log(11111111111);
             let state = crypto.randomBytes(32).toString("hex");
 
             states.set(state,
@@ -44,7 +46,10 @@ Router.route('/google/callback').get((req,res,next)=>{
                     userName:user.userName,
                 });
 
-                console.log(state,states);
+                let user1 = await User.findOneAndUpdate({_id:user._id},{state}) ;
+                
+
+                console.log(user1);
             
             return res.redirect(`voxchat://auth-success?state=${state}`)
 
@@ -61,8 +66,9 @@ Router.route('/tokens').post(upload.none(),asyncWrapper(async(req,res,next)=>{
 
     let {state} = req.body;
 
-    let user = states.get(state);
+    let user = await User.find({state});
 
+    console.log(user);
     if(!user) return next(new AppError("invalid state",400,"fail"));
     if(user.expire < Date.now()) return next(new AppError("expired state",404,"fail"));
 
