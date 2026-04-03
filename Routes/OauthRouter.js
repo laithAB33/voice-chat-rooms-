@@ -44,9 +44,9 @@ Router.route('/google/callback').get((req,res,next)=>{
                     userName:user.userName,
                 });
 
+                console.log(state,states);
             
             return res.redirect(`voxchat://auth-success?state=${state}`)
-
 
         }catch(err){
             
