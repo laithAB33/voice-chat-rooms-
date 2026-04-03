@@ -63,7 +63,8 @@ Router.route('/tokens').post(upload.none(),asyncWrapper(async(req,res,next)=>{
 
     let user = states.get(state);
 
-    if(!user || user.expire < Date.now()) return next(new AppError("invalid of expired state",404,"fail"));
+    if(!user) return next(new AppError("invalid state",400,"fail"));
+    if(user.expire < Date.now()) return next(new AppError("expired state",404,"fail"));
 
     let payload = {email:user.email,userID:user.userID,userName:user.userName};
     const accessToken = genrateToken(payload,"ACCESS_TOKEN_SECRET");
