@@ -168,7 +168,7 @@ let refreshToken = asyncWrapper(async(req,res,next)=>{
     if(decoded.userID !=foundUser._id)
          return next(new AppError("Unauthorized",401,"fail"));
     
-    req.userID = decoded.id;
+    req.userID = decoded.userID;
     req.email = decoded.email;
     req.userName = decoded.userName;
 
@@ -205,10 +205,9 @@ let deleteUser = asyncWrapper(async(req,res,next)=>{
 
     let foundUser = await User.findOne({_id:req.userID});
 
-    if(!foundUser){
-
+    if(!foundUser)
         return res.status(200).json({success:true, status:"success", message:"you have already deleted the user", data:null})
-    }
+    
 
     let userName = foundUser.userName;
 
