@@ -8,11 +8,16 @@ let Router = Express.Router();
 
 Router.route('/').post(verifyToken,upload.single('image'),create)
                  .get(verifyToken,getAll)
-                 .delete(verifyToken,upload.none(),banUser);
-Router.route('/delete/:roomID').delete(verifyToken,upload.none(),deleteRoom)
+             
+Router.route('/ban').delete(verifyToken,upload.none(),banUser);
+
 Router.route('/myRooms').get(verifyToken,getMyrooms);
-Router.route('/:roomID').get(verifyToken,getRoom);
+
+Router.route('/:roomID').get(verifyToken,getRoom)
+                        .delete(verifyToken,upload.none(),deleteRoom);
+
 Router.route('/:roomID/messages').get(verifyToken,roomMessage);
+
 Router.route('/update/:roomID').patch(verifyToken,upload.single('image'),roomUpdateValidate,updateRoom);
 
 export{Router};
