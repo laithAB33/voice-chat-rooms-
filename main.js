@@ -11,12 +11,29 @@ import {Router as userRouter} from './Routes/userRouter.js';
 import { Router as roomRouter } from "./Routes/roomRouter.js";
 import { socketAuth } from "./sokect.IO/socketAuth.js";
 import { socketWrapper} from "./middleware/asyncWrapper.js";
-import { joinRoom , sendMessage , leaveRoom, disconnect,voiceRequest,toggleMicrophone,speakingStatus,voiceData,priviteMessage,sendInvitation,acceptInvitation,acceptInvitationToMicrophone,inviteToMicrophone} from "./sokect.IO/socketController.js";
+import { joinRoom , sendMessage , leaveRoom, disconnect,voiceRequest,toggleMicrophone,voiceData,priviteMessage,sendInvitation,acceptInvitation,acceptInvitationToMicrophone,inviteToMicrophone} from "./sokect.IO/socketController.js";
 import { Router as OauthRouter } from "./Routes/OauthRouter.js";
+import {Router as messageRouter} from "./Routes/messageRouter.js"
 import passport from "passport";
+import { User } from "./modules/userSchema.js";
+import { createClient } from 'redis';
 
-let states = new Map(),
-invitationToMic = new Map();
+const redis = createClient({
+    username: 'default',
+    password: 'zHhCAgWMfoV0BrYr41m0dC6U1NuMZPLb',
+    socket: {
+        host: 'redis-12391.c13.us-east-1-3.ec2.cloud.redislabs.com',
+        port: 12391
+    }
+});
+
+redis.on('error', err => console.log('Redis Client Error', err));
+
+await redis.connect();
+
+redis.on('error', (err) => console.error('Redis Error:', err));
+redis.on('connect', () => console.log('✅ Connected to Upstash Redis'))
+
 let app = Express(),
     port = process.env.PORT;
 
@@ -42,7 +59,7 @@ mongoose.connect(process.env.MONGODB_CONNECT_STR)
     console.log("mongodb connection error",err);
 })
 
-export{states,invitationToMic};
+export{redis};
 
 app.use(Cors({credentials:true}));
 app.use(Express.json());
@@ -51,39 +68,35 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended:true}));
 
 //end point
-app.use('/auth',OauthRouter);
+app.use('/api/auth',OauthRouter);
 app.use('/api/user',userRouter);
 app.use('/api/room',roomRouter);
-
+app.use('/api/message',messageRouter);
 io.use(socketAuth);
 
-let connectedUsers = new Map(); //socketID : userData
-let userRooms = new Map(); // userID : roomID
 
-export{connectedUsers,userRooms,io};
+
+export{io};
 
 io.on('connection',socketWrapper(async(socket)=>{
 
-    connectedUsers.set(socket.id,{
-        userName:socket.userName,
-        userID : socket.userID,
-        profileImage:socket.profileImage,
-        connectAt:new Date(),
-    })
+    let user = await User.findByIdAndUpdate(socket.userID,{isOnline:true});
+
+    await redis.set(`userID:socketID${socket.userID}`,socket.id);
 
     socket.on('join-room',joinRoom(socket));
     
-    socket.on('send-message',sendMessage(socket));
+    socket.on('send-message',sendMessage(socket,user));
 
     socket.on('leave-Room',leaveRoom(socket));
 
-    socket.on('disconnect',disconnect(socket));
+    socket.on('disconnect',disconnect(socket,user));
 
     socket.on('request-voice-access',voiceRequest(socket));
 
     socket.on('toggle-microphone',toggleMicrophone(socket));
 
-    socket.on('speaking-Status',speakingStatus(socket));
+    // socket.on('speaking-Status',speakingStatus(socket));
 
     socket.on('voice-data',voiceData(socket));
 

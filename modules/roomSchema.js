@@ -47,8 +47,9 @@ const roomSchema = new Schema({
     }]
     },
     isActive: {
-        type: Boolean,
-        default: true
+        type:String,
+        default:"active",
+        enum: ['notactive', 'active',],
     },
     maxParticipants: {
         type: Number,
@@ -67,33 +68,47 @@ const roomSchema = new Schema({
             type:String,
             default:null,
         }     
+    },
+    banList:{
+        default:[],
+        type:[{
+            userID: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User'
+            },
+            start:{
+                type:Date,
+                default:Date.now(),
+            },
+            end:{
+                type:Date,
+                default:null
+            },
+        }]
+    },
+    chatActive:{
+        type:String,
+        default:"active",
+        enum: ['notactive', 'active',],
     }
+
 }, {
     timestamps: true
 });
-
 
 roomSchema.methods.isFull = function(){
     return this.participants.length >= this.maxParticipants
 }
 
-
 roomSchema.methods.addPerson = async function(userID,role){
 
-    if(this.participants.find( user => String(user.userID) === String(userID) ))
-    {
-        
-        //  throw (new AppError("the user is allready a member on the group",400,"fail"));  
-
-         return;
-    }
+    if(this.participants.find( user => String(user.userID) === String(userID) )) return;
 
     this.participants.push({userID,role});
 
     await this.save();
 }
 
-// test this
 roomSchema.methods.removePerson = async function(userID){
 
     this.participants = this.participants.filter(user => String(user.userID) != String(userID));

@@ -2,17 +2,19 @@ import { socketWrapper2 } from "../middleware/asyncWrapper.js";
 import { AppError } from "../utils/appError.js";
 import { Room } from "../modules/roomSchema.js";
 import { Message } from "../modules/messageSchema.js";
-import { connectedUsers,userRooms,io,invitationToMic } from "../main.js";
+import {io} from "../main.js";
 import { User } from "../modules/userSchema.js";
 import { PriviteMessage } from "../modules/priviteMessageSchema.js";
 import { Invitation } from "../modules/invitationSchema.js";
+import { redis } from "../main.js";
+
 
 let joinRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
 
     if(!roomID)
         throw new AppError("the room id is requied",400,"fail");
 
-        let room = await Room.findOne({_id:roomID,isActive:true}),role = "member";
+    let room = await Room.findOne({_id:roomID,isActive:"active"}),role = "member";
 
     if(!room)
         throw new AppError("the room not found",400,"fail");
@@ -22,15 +24,26 @@ let joinRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
     if(room.isFull() && role != "owner")
         throw new AppError("the room is full",400,"fail");
 
+    let bannedUser = undefined,index = -1;
+
+    for(let i = 0 ; i < room.banList.length;i++)
+    {
+        if(String(room.banList[i].userID) == String(socket.userID))
+        {
+            index = i;
+            bannedUser = room.banList[i];
+
+            if(bannedUser.end < Date.now()) room.banList.splice(index,1);
+
+            else throw new AppError("you can not enter the room",403,"fail");
+        }
+    }
+
     await room.addPerson(socket.userID,role);
 
     socket.join(roomID);
 
-    socket.currentRoom = roomID;
-
-    userRooms.set(socket.userID.toString(),roomID);
-
-    connectedUsers.get(socket.id).currentRoom = roomID;
+    redis.set(`userID:roomID${socket.userID}`,roomID);
 
     const messages = await Message.find({roomID})
         .populate("userID","userName profileImage")
@@ -76,15 +89,17 @@ let joinRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
 
 });
 
-let sendMessage = (socket)=> socketWrapper2(socket,async(data)=>{
+let sendMessage = (socket,user)=> socketWrapper2(socket,async(data)=>{
 
-    let {message, messageType = 'text',fileUrl = null,roomID} = data;
+    let {message, messageType = 'text',fileUrl = null} = data;
 
-    if(roomID) socket.currentRoom = roomID;
+    let roomID = await redis.get(`userID:roomID${socket.userID}`);
+
+    if(!roomID) throw new AppError("the user is not in room",404,"fail");
 
     let checkRoom = await Room.findOne(
         {
-            _id:socket.currentRoom,
+            _id:roomID,
             participants:
             {
                 $elemMatch:
@@ -92,15 +107,17 @@ let sendMessage = (socket)=> socketWrapper2(socket,async(data)=>{
                     userID:socket.userID,
                 }
             },
-            isActive:true
+            isActive:"active"
         });
 
-    if(!checkRoom) throw new AppError("your are not in the group",400,"fail");
+    if(!checkRoom) throw new AppError("your are not in a room",404,"fail");
+
+    if(checkRoom.chatActive == "notactive")throw new AppError("chat is closed",403,"fail");
 
     if(!message || message.trim() === '') throw new AppError("the message can't be empty");
 
     let newMessage = new Message({
-        roomID:socket.currentRoom,
+        roomID,
         userID:socket.userID,
         userName:socket.userName,
         message:message.trim(),
@@ -110,36 +127,37 @@ let sendMessage = (socket)=> socketWrapper2(socket,async(data)=>{
 
     await newMessage.save();
 
-    let userAndMessage = await Message.findById(newMessage._id)
-        .populate('userID','userName profileImage');
+
         
-        io.to(socket.currentRoom).emit('new-message',{
-            MassageID:userAndMessage._id,
-            userID:userAndMessage.userID._id,
-            userName:userAndMessage.userID.userName,
-            profileImage:userAndMessage.userID.profileImage,
-            message:userAndMessage.message,
-            messageType:userAndMessage.messageType,
-            file:userAndMessage.fileUrl,
-            timestamp:userAndMessage.createdAt,
+        io.to(roomID).emit('new-message',{
+            MassageID:newMessage._id,
+            userID:user._id,
+            userName:user.userName,
+            profileImage:user.profileImage,
+            message:newMessage.message,
+            messageType:messageType,
+            file:newMessage.fileUrl,
+            timestamp:newMessage.createdAt,
         })
 
 });
 
-let leaveRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
+let leaveRoom = (socket)=> socketWrapper2(socket,async()=>{
 
-    if(roomID) socket.currentRoom = roomID;
+    let roomID = await redis.get(`userID:roomID${socket.userID}`);
 
-    if(!socket.currentRoom) throw new AppError("the room id is required",400,"fail");
+    if(!roomID) throw new AppError("the user is not a room member",404,"fail");
 
-    let room = await Room.findById(socket.currentRoom);
+    let room = await Room.findById(roomID);
 
     if(!room) throw new AppError("the room id is not valid",400,"fail");
 
     await room.removePerson(socket.userID);
 
+    await redis.del(`userID:roomID${socket.userID}`);
+
     const systemMessage = new Message({
-        roomID:socket.currentRoom,
+        roomID,
         userID:socket.userID,
         userName:'system',
         message: `${socket.userName} left the group`,
@@ -148,7 +166,7 @@ let leaveRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
 
     await systemMessage.save();
 
-    socket.to(socket.currentRoom).emit('user-left',{
+    io.to(roomID).emit('user-left',{
         userName:socket.userName,
         message: `${socket.userName} left the group`,
         timestamps:new Date(),
@@ -160,11 +178,7 @@ let leaveRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
         }
     })
 
-    socket.leave(socket.currentRoom);
-
-    userRooms.delete(socket.userID.toString());
-
-    socket.currentRoom = null;
+    socket.leave(roomID);
 
     socket.emit('room-left',{
         success:true,
@@ -174,30 +188,30 @@ let leaveRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
 
 })
 
-let disconnect = (socket)=> socketWrapper2(socket,async()=>{
+let disconnect = (socket,user)=> socketWrapper2(socket,async()=>{
 
-    let room = await Room.findById(socket.currentRoom);
+    let roomID = await redis.get(`userID:roomID${socket.userID}`);
 
+    await redis.del(`userID:roomID${socket.userID}`);
+    await redis.del(`userID:socketID${socket.userID}`);
 
-    if(!room)
-    {
-        connectedUsers.delete(socket.id);
-        userRooms.delete(socket.userID.toString());
+    let room = await Room.findById(roomID);
 
-        return
-    }
+    user.online = false;
+    user.lastSeen = new Date();
 
-    let user = room.participants.find(user=>String(user.userID) == String(socket.userID))
+    await user.save();
+
+    if(!room) return;
+
+    let isMember = room.participants.find(user=>String(user.userID) == String(socket.userID));
+
+    if(!isMember) throw new AppError("the user is not a room member",400,"fail");
 
     await room.removePerson(socket.userID);
 
-    connectedUsers.delete(socket.id);
-
-    userRooms.delete(socket.userID.toString());
-
-
     const systemMessage = new Message({
-        roomID:socket.currentRoom,
+        roomID,
         userID:socket.userID,
         userName:'system',
         message: `${socket.userName} disconnected`,
@@ -206,7 +220,7 @@ let disconnect = (socket)=> socketWrapper2(socket,async()=>{
 
     await systemMessage.save();
 
-    socket.to(socket.currentRoom).emit('user-disconnected',{
+    io.to(roomID).emit('user-disconnected',{
         userName:socket.userName,
         message:`${socket.userName} disconnected`,
         timestamp: new Date,
@@ -217,24 +231,19 @@ let disconnect = (socket)=> socketWrapper2(socket,async()=>{
         }
     })
 
-    await User.findByIdAndUpdate(socket.userID,
-        {
-            lastSeen:new Date(),
-        });
-
-
-
-
 })
 
-let voiceRequest = (socket)=> socketWrapper2(socket,async(roomID)=>{
+
+let voiceRequest = (socket)=> socketWrapper2(socket,async()=>{
+
+    let roomID = await redis.get(`userID:roomID${socket.userID}`);
 
     if(!roomID)
-    throw new AppError("not a valid roomID",400,"fail");
+    throw new AppError("user is not a room member",400,"fail");
 
-    let room = await Room.findOne({_id:roomID,isActive:true});
+    let room = await Room.findOne({_id:roomID,isActive:"active"});
 
-    if(!room) throw new AppError("the room not found",400,"fail");
+    if(!room) throw new AppError("the room not found",404,"fail");
 
     let user = room.participants.find(user=> String(user.userID) == String(socket.userID));
     
@@ -276,21 +285,23 @@ let voiceRequest = (socket)=> socketWrapper2(socket,async(roomID)=>{
 
 let toggleMicrophone = (socket)=> socketWrapper2(socket,async(data)=>{
 
-    const { roomID, userID, isMuted } = data;
+    const {userID, isMuted } = data;
 
-    let room = await Room.findOne({_id:roomID,isActive:true}).populate("participants.userID","userName");
+    let roomID = await redis.get(`userID:roomID${socket.userID}`);
+
+    let room = await Room.findOne({_id:roomID,isActive:"active"}).populate("participants.userID","userName");
 
     if(!room)throw new AppError("the room not found",400,"fail");
 
     let userToMute = room.participants.find( user=> String(user.userID._id) == String(userID) );
 
-    let responsible = room.participants.find( user=> String(user.userID._id) == String(userID) );
+    let responsible = room.participants.find( user=> String(user.userID._id) == String(socket.userID) );
 
     if(!userToMute) throw new AppError("user id is not valid",400,"fail");
 
     if(!userToMute.hasVoiceAccess)throw new AppError("you don't have a voice access",400,"fail");
 
-    if((responsible == userToMute) || (responsible.role == "owner") || (responsible.role == "admin" && userToMute.role != "user"))
+    if((responsible == userToMute) || (responsible.role == "owner") || (responsible.role == "admin" && userToMute.role == "member"))
     userToMute.isMuted = isMuted;
     else throw new AppError("require authorization",403,"fail");
 
@@ -298,83 +309,78 @@ let toggleMicrophone = (socket)=> socketWrapper2(socket,async(data)=>{
 
     io.to(roomID).emit('user-microphone-toggled', {
         userId: userID,
-        username: user.userID.userName,
+         username: userToMute.userID.userName,
         isMuted: isMuted,
     });
 })
 
-let speakingStatus = (socket)=> socketWrapper2(socket,async(data)=>{
+// let speakingStatus = (socket)=> socketWrapper2(socket,async(data)=>{
 
-    const { roomID, userID, isSpeaking } = data;
+//     const { roomID, userID, isSpeaking } = data;
 
-    const room = await Room.findOne({ _id:roomID,isActive:true }).populate("participants.userID","userName");
+//     const room = await Room.findOne({ _id:roomID,isActive:"active" }).populate("participants.userID","userName");
 
-    if(!room)throw new AppError("the room not found",400,"fail");
+//     if(!room)throw new AppError("the room not found",400,"fail");
 
-    let user = room.participants.find( user=> String(user.userID._id) == String(userID) );
+//     let user = room.participants.find( user=> String(user.userID._id) == String(userID) );
 
-    if(!user) throw new AppError("user id is not valid",400,"fail")
+//     if(!user) throw new AppError("user id is not valid",400,"fail")
 
-    if(!user.hasVoiceAccess)throw new AppError("you don't have a voice access",400,"fail");
+//     if(!user.hasVoiceAccess)throw new AppError("you don't have a voice access",400,"fail");
 
-    user.isSpeaking = isSpeaking
-    await room.save();
+//     user.isSpeaking = isSpeaking
+//     await room.save();
 
 
-    io.to(roomID).emit('user-speaking-status', {
-        userId: userID,
-        username: user.userID.userName,
-        isSpeaking: isSpeaking,
-    });
-})
+//     io.to(roomID).emit('user-speaking-status', {
+//         userId: userID,
+//         username: user.userID.userName,
+//         isSpeaking: isSpeaking,
+//     });
+// })
 
 let voiceData = (socket)=> socketWrapper2(socket,async(data)=>{
 
-    const { roomID, userID, audioData } = data;
-
-    const room = await Room.findOne({ _id:roomID,isActive:true})
+    let roomID = await redis.get(`userID:roomID${socket.userID}`);
+    
+    const room = await Room.findOne({ _id:roomID,isActive:"active"})
 
     if(!room)throw new AppError("the room not found",400,"fail");
 
-    let user = room.participants.find( user=> String(user.userID._id) == String(userID) );
+    let user = room.participants.find( user=> String(user.userID._id) == String(socket.userID) );
 
     if(!user) throw new AppError("user id is not valid",400,"fail")
 
     if(!user.hasVoiceAccess)throw new AppError("you don't have a voice access",400,"fail");
+
+    if(user.isMuted)throw new AppError("user is muted",400,"fail");
  
-        socket.to(data.roomID).emit('voice-data', {
-            userId: data.userID,
-            audioData: data.audioData
+        io.to(`voice-${roomID}`).emit('voice-data', {
+            userID: socket.userID,
+            audioData: data
         })
 
 })
+
 
 let priviteMessage = (socket)=>socketWrapper2(socket,async(data)=>{
 
     let {message, messageType = 'text',fileUrl = null,userID} = data;
 
-    let socketID,delivered = false;
-
-
     let user = await User.findById(userID);
 
     if(!user) throw new AppError("the user id is not valid",400,"fail");
 
-    for(let [key,value] of connectedUsers)
-    {
-        if(value.userID == userID)
-        {
-            socketID = key; break;
-        }
-    }
-
+    let socketID = await redis.get(`userID:socketID${userID}`),
+        delivered = false;
+    
     if(socketID)delivered = true;
 
     let newMessage = new PriviteMessage({senderID:socket.userID,receiverID:userID,message,messageType,delivered})
 
     await newMessage.save();
 
-    io.to(socket.id).emit('message-sent',{
+    socket.emit('message-sent',{
         senderID:socket.userID,
         receiverID:userID,
         message,
@@ -396,13 +402,13 @@ let priviteMessage = (socket)=>socketWrapper2(socket,async(data)=>{
 
 let sendInvitation = (socket)=>socketWrapper2(socket,async(data)=>{
 
-    let {userID,roomID} = data, delivered = false,socketID;
+    let {userID,roomID} = data, delivered = false;
 
-    let room = await Room.findOne({_id:roomID,isActive:true})
+    let room = await Room.findOne({_id:roomID,isActive:"active"})
 
     if(!room)throw new AppError("the room not found",400,"fail");
 
-    let user = room.participants.find(user=>user.userID == userID);
+    let user = room.participants.find(user=> String(user.userID) ==  String(userID));
 
     if(user)throw new AppError("the user is a room member",400,"fail");
 
@@ -410,13 +416,26 @@ let sendInvitation = (socket)=>socketWrapper2(socket,async(data)=>{
 
     if( !admin || admin.role == "member") throw new AppError("only an admin can send a invitation",403,"fail");
 
-    for(let [key,value] of connectedUsers)
+////////////////
+    let bannedUser = null,index = -1;
+
+    for(let i = 0 ; i < room.banList.length;i++)
     {
-        if(value.userID == userID)
+        if(String(room.banList[i].userID) == String(userID))
         {
-            socketID = key; break;
+            index = -1;
+            bannedUser = userID;
         }
     }
+    
+    if(bannedUser)
+    {
+        room.banList.splice(index,1);
+    }
+//////////////////
+    
+
+    let socketID = await redis.get(`userID:socketID${userID}`);
 
     if(socketID)delivered = true;
 
@@ -424,7 +443,7 @@ let sendInvitation = (socket)=>socketWrapper2(socket,async(data)=>{
 
     await invitation.save();
 
-    io.to(socket.id).emit('invitation-sent',{
+    socket.emit('invitation-sent',{
         senderID:socket.userID,
         receiverID:userID,
         roomID,
@@ -432,6 +451,7 @@ let sendInvitation = (socket)=>socketWrapper2(socket,async(data)=>{
     })
 
     if(!socketID)return;
+
 
     io.to(socketID).emit('invitation-received',{
         senderID:socket.userID,
@@ -459,7 +479,7 @@ let acceptInvitation = (socket)=>socketWrapper2(socket,async(data)=>{
     if(!roomID)
     throw new AppError("the room id is requied",400,"fail");
 
-    let room = await Room.findOne({_id:roomID,isActive:true});
+    let room = await Room.findOne({_id:roomID,isActive:"active"});
 
     if(!room)
         throw new AppError("the room not found",400,"fail");
@@ -471,11 +491,7 @@ let acceptInvitation = (socket)=>socketWrapper2(socket,async(data)=>{
 
     socket.join(roomID);
 
-    socket.currentRoom = roomID;
-
-    userRooms.set(socket.userID.toString(),roomID);
-
-    connectedUsers.get(socket.id).currentRoom = roomID;
+    await redis.set(`userID:roomID${socket.userID}`,roomID);
 
     const messages = await Message.find({roomID})
         .populate("userID","userName profileImage")
@@ -521,16 +537,16 @@ let acceptInvitation = (socket)=>socketWrapper2(socket,async(data)=>{
 
 
 })
-
+///////////////////////////////////////////////////////////////////////////////
 let inviteToMicrophone = (socket)=>socketWrapper2(socket,async(data)=>{
 
-    let {userID,roomID} = data,socketID;
+    let {userID,roomID} = data;
     
-    let room = await Room.findOne({_id:roomID,isActive:true})
+    let room = await Room.findOne({_id:roomID,isActive:"active"})
 
     if(!room)throw new AppError("the room not found",400,"fail");
 
-    let receiver = room.participants.find(user=>user.userID == userID);
+    let receiver = room.participants.find(user=>String(user.userID) == String(userID));
 
     let sender = room.participants.find(user=>String(user.userID) == String(socket.userID));
 
@@ -540,18 +556,15 @@ let inviteToMicrophone = (socket)=>socketWrapper2(socket,async(data)=>{
     
     if(receiver.hasVoiceAccess)throw new AppError("the user already has voice access",400,"fail");
 
-    for(let [key,value] of connectedUsers)
-    {
-        if(value.userID == userID)
-        {
-            socketID = key; break;
-        }
-    }
+    let socketID = await redis.get(`userID:socketID${userID}`);
+
     if(!socketID)throw new AppError("user is not connected",408,"fail");
 
-    invitationToMic.set(String(socket.userID),{userID,roomID}); // sender receiver
 
-    io.to(socket.id).emit('invite-toMic-send',{
+    await redis.set(`receiver:sender${userID}`,`{"userID":"${socket.userID}","roomID":"${roomID}"}`);
+
+    console.log(socketID);
+    socket.emit('invite-toMic-send',{
         senderID:socket.userID,
         receiverID:userID,
         roomID,
@@ -566,25 +579,36 @@ let inviteToMicrophone = (socket)=>socketWrapper2(socket,async(data)=>{
 
 let acceptInvitationToMicrophone = (socket)=>socketWrapper2(socket,async(data)=>{
 
-    let {userID,roomID} = data,socketID;
+    let {userID,roomID} = data;
 
-    let room = await Room.findOne({_id:roomID,isActive:true})
+    let room = await Room.findOne({_id:roomID,isActive:"active"})
 
-    if(!room)throw new AppError("the room not found",400,"fail");
+    if(!room)throw new AppError("the room not found",404,"fail");
 
     let receiver = room.participants.find(user=>String(user.userID) == String(socket.userID));
 
     if(!receiver)throw new AppError("the user is not a group member",400,"fail");
 
-    let invitation = invitationToMic.get(String(userID));
+    let invitation = await redis.get(`receiver:sender${socket.userID}`);
+    
+    let socketID = await redis.get(`userID:socketID${userID}`);
 
-    if(!invitation || (invitation.userID != String(socket.userID) ||  invitation.roomID != String(roomID)) )throw new AppError("the invitation dose not exists",400,"fail");
+    invitation = JSON.parse(invitation);
+
+    console.log(invitation);
+
+    if(!invitation || (String(invitation.userID) != String(userID) ||  String(invitation.roomID) != String(roomID)) )throw new AppError("the invitation dose not exists",400,"fail");
+    
+    socket.join(`voice-${roomID}`);
 
     receiver.hasVoiceAccess = true;
 
     await room.save();
 
-    io.to(socket.id).emit('joined-mic',{
+
+    await redis.del(`receiver:sender${socket.userID}`)
+
+    socket.emit('joined-mic',{
         senderID:userID,
         receiverID:socket.userID,
         roomID,
@@ -598,4 +622,4 @@ let acceptInvitationToMicrophone = (socket)=>socketWrapper2(socket,async(data)=>
     })
 })
 
-export {joinRoom,sendMessage,leaveRoom,disconnect,voiceRequest,toggleMicrophone,speakingStatus,voiceData,priviteMessage,sendInvitation,acceptInvitation,acceptInvitationToMicrophone,inviteToMicrophone};
+export {joinRoom,sendMessage,leaveRoom,disconnect,voiceRequest,toggleMicrophone,voiceData,priviteMessage,sendInvitation,acceptInvitation,acceptInvitationToMicrophone,inviteToMicrophone};

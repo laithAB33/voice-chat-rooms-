@@ -57,10 +57,17 @@ const userSchema = new Schema({
         required:[true,"you need to Determine the access provider"],
         default:[]
     },
-    expire:{
-        type:Date,
-        default: new Date(Date.now()+ 60*1000)
+    state:{
+        type:String,
+    },
+    isOnline:{
+        type:Boolean,
+        default:false
     }
+    // expire:{
+    //     type:Date,
+    //     default: new Date(Date.now()+ 60*1000)
+    // }
 }, {
     timestamps: true     // يضيف createdAt و updatedAt تلقائياً
 });

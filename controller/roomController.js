@@ -3,6 +3,7 @@ import { asyncWrapper } from "../middleware/asyncWrapper.js";
 import { Room } from "../modules/roomSchema.js";
 import {Message} from "../modules/messageSchema.js";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
+import { cloudinary } from "../utils/cloudinary.js";
 
 let create = asyncWrapper(async(req,res,next)=>{
 
@@ -33,7 +34,7 @@ let create = asyncWrapper(async(req,res,next)=>{
 
     await room.save();
 
-    await room.addPerson(req.userID,"admin");
+    // await room.addPerson(req.userID,"owner");
 
 
     res.status(201).json({success: true ,status:"success",message: "room created successflly" ,
@@ -59,6 +60,14 @@ let roomMessage = asyncWrapper(async(req,res,next)=>{
     let {roomID} = req.params;
     let {page = 1, limit = 50} = req.query;
 
+    let room = await Room.findOne({_id:roomID});
+
+    if(!room) return next(new AppError("room with his id dose not exist",404,"fail"));
+
+    let user = room.participants.find(user => String(user.userID) == String(req.userID))
+
+    if(!user) return next(new AppError("user is not a room member",403,"fail"));
+
     let messages = await Message.find({roomID})
         .populate("userID","userName")
         .sort({createdAt:-1})
@@ -76,22 +85,6 @@ let getRoom = asyncWrapper(async(req,res,next)=>{
     let room = await Room.findById(roomID);
 
     res.status(200).json({success: true ,status: "success" ,message: "room info" ,data:{room}})
-})
-
-let changeStatus = asyncWrapper(async(req,res,next)=>{
-    
-    let {roomID} = req.params;
-
-    let room = await Room.findOne({_id:roomID});
-
-    if(!room) throw new AppError("the room not found",400,"fail");
-
-    room.isActive = !room.isActive;
-
-    await  room.save();
-
-    res.status(200).json({success: true ,status: "success" ,message: "room info" ,data:{room}})
-    
 })
 
 let getMyrooms = asyncWrapper(async(req,res,next)=>{
@@ -112,9 +105,13 @@ let getMyrooms = asyncWrapper(async(req,res,next)=>{
 let updateRoom = asyncWrapper(async(req,res,next)=>{
 
     let {roomID} = req.params;
-    let {name,description,maxVoiceParticipants} = req.body;
+    let {name,description,maxVoiceParticipants,chatActive,isActive} = req.body;
 
-    let room = await Room.findOne({_id:roomID}),photo;
+    let room = await Room.findOne({_id:roomID,}),photo;
+
+    if(!room) return next(new AppError("room with his id dose not exist",404,"fail"));
+
+    if(String(room.createdBy) != String(req.userID)) return next(new AppError("you are not the room creator",403,"fail"));
 
     if(req.file)
     {
@@ -127,7 +124,7 @@ let updateRoom = asyncWrapper(async(req,res,next)=>{
     let updatedRoom = await Room.findByIdAndUpdate(
     {_id:roomID},
     {
-        name,description,maxVoiceParticipants,
+        name,description,maxVoiceParticipants,chatActive,isActive,
         image:{
         url:photo?.url,
         public_id:photo?.public_id,  
@@ -139,4 +136,65 @@ let updateRoom = asyncWrapper(async(req,res,next)=>{
     res.status(200).json({success: true ,status: "success" ,message: "room updated" ,data:{updatedRoom}})
 })
 
-export{create,getAll,roomMessage,getRoom,changeStatus,getMyrooms,updateRoom};
+let banUser = asyncWrapper(async(req,res,next)=>{
+
+    let {userID,roomID,time} = req.body
+
+    let room = await Room.findById(roomID);
+
+    if(!room) return next(new AppError("room with this id dose not exist",404,"fail"));
+ 
+    let index = -1,user,admin;
+
+    for(let i =0 ;i<room.participants.length;i++)
+    {
+        if(String(room.participants[i].userID) == String(userID))
+        {
+            index = i;
+            user = room.participants[i];
+        }
+        if(String(room.participants[i].userID) == String(req.userID))
+        {
+            admin = room.participants[i].userID;
+        }
+    }
+    ;
+    if(!admin || admin.role == "member")
+    if(index == -1) return next(new AppError("user with this id is not in the room",404,"fail"))
+ 
+    room.participants.splice(index,1);
+ 
+    room.banList.push({
+        userID:userID,
+        start:Date.now(),
+        end:Date.now() + (time *1000),
+    })
+   
+    await room.save();
+
+    console.log(room)
+
+    res.status(200).json({success: true ,status: "success" ,message: "the user is banned " ,data:{banList:room.banList}})
+    
+})
+
+let deleteRoom =  asyncWrapper(async(req,res,next)=>{
+    
+    let {roomID} = req.params;
+
+    let room = await Room.findById(roomID);
+
+    if(!room) return next(AppError("room not found",404,"fail"));
+
+    if(String(room.createdBy) != String(req.userID)) return next(AppError("user is not the owner",403,"fail"));
+
+    let image = room.image;
+
+    if(image?.public_id)await cloudinary.uploader.destroy(image.public_id);        
+    console.log(image);
+    await room.deleteOne();
+
+    res.status(200).json({success:true, status:"success", message:"room deleted", data:{roomID}})
+
+})
+export{create,getAll,roomMessage,getRoom,getMyrooms,updateRoom,banUser,deleteRoom};

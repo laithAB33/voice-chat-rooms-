@@ -2,7 +2,7 @@ import  Express  from "express";
 import {register,login,test,logout,refreshToken,deleteUser,addAvatar,update,getNewMessages,getNewInvitation} from "../controller/userController.js";
 import {verifyToken} from "../middleware/verifyToken.js" ;
 import { upload } from "../middleware/multer.js";
-import { userUpdateValidate } from "../middleware/userValidate.js";
+import { userUpdateValidate } from "../middleware/validate.js";
 let Router = Express.Router();
 
 Router.route('/')

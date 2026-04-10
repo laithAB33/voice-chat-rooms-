@@ -41,6 +41,7 @@ export default passport.use(new Strategy({
         provider:["google"],
         googleId:profile.id,
         isActive:true,
+        state:null,
       });
     }
 
