@@ -184,9 +184,9 @@ let deleteRoom =  asyncWrapper(async(req,res,next)=>{
 
     let room = await Room.findById(roomID);
 
-    if(!room) return next(AppError("room not found",404,"fail"));
+    if(!room) return next(new AppError("room not found",404,"fail"));
 
-    if(String(room.createdBy) != String(req.userID)) return next(AppError("user is not the owner",403,"fail"));
+    if(String(room.createdBy) != String(req.userID)) return next(new AppError("user is not the owner",403,"fail"));
 
     let image = room.image;
 
@@ -197,4 +197,27 @@ let deleteRoom =  asyncWrapper(async(req,res,next)=>{
     res.status(200).json({success:true, status:"success", message:"room deleted", data:{roomID}})
 
 })
-export{create,getAll,roomMessage,getRoom,getMyrooms,updateRoom,banUser,deleteRoom};
+
+let addAdmin = asyncWrapper(async(req,res,next)=>{
+
+    let {roomID,userID} = req.body;
+
+    let room = await Room.findOne({_id:roomID});
+
+    if(!room) return next( new AppError("room not found",404,"fail"));
+
+    if(room.createdBy != req.userID)return next(new AppError("only owner of group can add admin",403,"fail"));
+
+    let user = room.participants.find(user=> String(user.userID) ==  String(userID));
+
+    if(!user)return next(new AppError("user is not a group member",400,"fail"));
+
+    if(user.role != "member")return next( new AppError("user is an admin",400,"fail"));
+
+    user.role = "admin";
+
+    await room.save();
+
+    res.status(200).json({success:true, status:"success", message:"user added as an admin", data:{user}});
+})
+export{create,getAll,roomMessage,getRoom,getMyrooms,updateRoom,banUser,deleteRoom,addAdmin};

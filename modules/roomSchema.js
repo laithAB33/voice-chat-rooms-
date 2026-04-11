@@ -18,7 +18,7 @@ const roomSchema = new Schema({
         required: true,
         unique: [true,"user can crate only one room"]
     },
-    participants:{ 
+    participants:{
         default:[],
         type:[{
         userID: {
