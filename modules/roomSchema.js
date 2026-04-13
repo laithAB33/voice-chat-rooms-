@@ -90,6 +90,10 @@ const roomSchema = new Schema({
         type:String,
         default:"active",
         enum: ['notactive', 'active',],
+    },
+    password:{
+        type:String,
+        default:"0000"
     }
 
 }, {

@@ -4,19 +4,23 @@ import { Room } from "../modules/roomSchema.js";
 import {Message} from "../modules/messageSchema.js";
 import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
 import { cloudinary } from "../utils/cloudinary.js";
+import bcryptjs from "bcryptjs";
 
 let create = asyncWrapper(async(req,res,next)=>{
 
-    let {name,description} = req.body,photo;
+    let {name,description,password} = req.body,photo,hashedPassword;
 
     let oldRoom = await Room.findOne({createdBy:req.userID});
 
     if(oldRoom) return next(new AppError("the user have a room ",400,"fail"));
 
+    if(password) hashedPassword = bcryptjs.hashSync(password);
+
     let room = new Room({
         name,
         description,
         createdBy:req.userID,
+        password:hashedPassword || "0000",
 
     });
 
@@ -105,9 +109,9 @@ let getMyrooms = asyncWrapper(async(req,res,next)=>{
 let updateRoom = asyncWrapper(async(req,res,next)=>{
 
     let {roomID} = req.params;
-    let {name,description,maxVoiceParticipants,chatActive,isActive} = req.body;
+    let {name,description,maxVoiceParticipants,chatActive,isActive,password} = req.body;
 
-    let room = await Room.findOne({_id:roomID,}),photo;
+    let room = await Room.findOne({_id:roomID,}),photo,hashedPassword;
 
     if(!room) return next(new AppError("room with his id dose not exist",404,"fail"));
 
@@ -121,19 +125,36 @@ let updateRoom = asyncWrapper(async(req,res,next)=>{
 
     }
 
+    if(password) hashedPassword = bcryptjs.hashSync(password);
+
     let updatedRoom = await Room.findByIdAndUpdate(
     {_id:roomID},
     {
         name,description,maxVoiceParticipants,chatActive,isActive,
         image:{
         url:photo?.url,
-        public_id:photo?.public_id,  
-        }
+        public_id:photo?.public_id
+        },
+        password:hashedPassword,
     },
     {new:true}
 );
 
-    res.status(200).json({success: true ,status: "success" ,message: "room updated" ,data:{updatedRoom}})
+    res.status(200).json({success: true ,status: "success" ,message: "room updated" ,data:{
+        room:{
+            id:updatedRoom._id,
+            participants:room.participants,
+            createdBy:room.createdBy,
+            description:room.description,
+            name:room.name,
+            isActive:room.isActive,
+            maxParticipants:room.maxParticipants,
+            maxVoiceParticipants:room.maxVoiceParticipants,
+            image:room.image,
+            banList:room.banList,
+            chatActive:room.chatActive
+        }
+    }})
 })
 
 let banUser = asyncWrapper(async(req,res,next)=>{
@@ -220,4 +241,5 @@ let addAdmin = asyncWrapper(async(req,res,next)=>{
 
     res.status(200).json({success:true, status:"success", message:"user added as an admin", data:{user}});
 })
+
 export{create,getAll,roomMessage,getRoom,getMyrooms,updateRoom,banUser,deleteRoom,addAdmin};

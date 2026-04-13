@@ -31,6 +31,7 @@ let roomUpdateValidate = asyncWrapper(async(req,res,next)=>{
 
     if(data.isActive  && data.isActive  != "active" && data.isActive  != "notactive")return next(new AppError("not a valid value for isActive",400,"fail"));
 
+    if(data.password.length < 5 ) return next(new AppError("password is too short",400,"fail"));
 
     next();
 })

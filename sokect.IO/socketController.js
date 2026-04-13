@@ -7,9 +7,11 @@ import { User } from "../modules/userSchema.js";
 import { PriviteMessage } from "../modules/priviteMessageSchema.js";
 import { Invitation } from "../modules/invitationSchema.js";
 import { redis } from "../main.js";
+import { authentication } from "../utils/authentication.js";
 
+let joinRoom = (socket)=> socketWrapper2(socket,async(data)=>{
 
-let joinRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
+    let {roomID,password = ""} = data;
 
     if(!roomID)
         throw new AppError("the room id is requied",400,"fail");
@@ -38,6 +40,9 @@ let joinRoom = (socket)=> socketWrapper2(socket,async(roomID)=>{
             else throw new AppError("you can not enter the room",403,"fail");
         }
     }
+
+    if(room.password != "0000")
+    await authentication(password,room.password);
 
     await room.addPerson(socket.userID,role);
 
